@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
@@ -746,6 +746,59 @@
       margin: 0.25rem 0;
     }
 
+    /* Pagination Styles */
+    .pagination-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 2rem 0 3rem 0;
+      flex-wrap: wrap;
+    }
+
+    .btn-page {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      width: 2.25rem;
+      height: 2.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .btn-page.active {
+      background-color: var(--primary-color);
+      color: #ffffff;
+      border-color: var(--primary-color);
+    }
+
+    .btn-page:hover:not(.active):not(:disabled) {
+      background-color: rgba(0, 0, 0, 0.05);
+      border-color: var(--primary-color);
+    }
+
+    .theme-dark .btn-page:hover:not(.active):not(:disabled) {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-page:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-page-nav {
+      width: auto;
+      padding: 0 0.75rem;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
       .header-content {
@@ -808,7 +861,7 @@
     <div class="container hero-content">
       <h2>คลังสื่อนวัตกรรมดิจิทัลเชิงพื้นที่สำหรับครูผู้สอน</h2>
       <p style="margin-bottom: 0.5rem;">รวบรวมระบบสารสนเทศ คลังความรู้ และเครื่องมือปัญญาประดิษฐ์เพื่อการนิเทศและการจัดการเรียนรู้เชิงรุกอย่างมีประสิทธิภาพ</p>
-      <p style="font-size: 0.95rem; opacity: 0.9; margin-top: 0.5rem; margin-bottom: 0;"><i class="fa-solid fa-user-tie"></i> รวบรวมโดย ศน.รัชภูมิ สมสมัย ศธจ.เชียงใหม่</p>
+      <p style="font-size: 0.95rem; opacity: 0.9; margin-top: 0.5rem; margin-bottom: 0;"><i class="fa-solid fa-user-tie"></i> จัดทำโดย ศน.รัชภูมิ สมสมัย ศธจ.เชียงใหม่</p>
     </div>
   </section>
 
@@ -863,6 +916,9 @@
     <section class="innovation-grid" id="grid-container" style="display: none;">
       <!-- JavaScript will populate cards here -->
     </section>
+    
+    <!-- Pagination controls -->
+    <div class="pagination-container" id="pagination-controls"></div>
 
     <!-- Empty State -->
     <div id="empty-state" class="empty-state" style="display: none;">
@@ -931,6 +987,11 @@
     // Global data holder
     let allInnovations = [];
     let activeTechFilter = 'all';
+    
+    // Pagination state
+    let currentPage = 1;
+    const itemsPerPage = 9;
+    let currentlyFilteredData = [];
 
     // 1. Initial configuration load from LocalStorage
     document.addEventListener("DOMContentLoaded", function() {
@@ -1046,8 +1107,15 @@
       }
     }
 
-    // Render Grid Cards
+    // Render Grid Cards with pagination integration
     function renderGrid(dataList) {
+      currentlyFilteredData = dataList;
+      currentPage = 1;
+      renderCurrentPage();
+    }
+
+    // Render cards for the current active page
+    function renderCurrentPage() {
       const grid = document.getElementById("grid-container");
       const loader = document.getElementById("loader");
       const emptyState = document.getElementById("empty-state");
@@ -1055,10 +1123,11 @@
       // Hide loader
       loader.style.display = "none";
       
-      if (dataList.length === 0) {
+      if (currentlyFilteredData.length === 0) {
         grid.style.display = "none";
         emptyState.style.display = "block";
         document.getElementById("results-count").innerText = "พบ 0 รายการ";
+        document.getElementById("pagination-controls").innerHTML = "";
         return;
       }
       
@@ -1066,7 +1135,12 @@
       grid.style.display = "grid";
       grid.innerHTML = ""; // Clear
       
-      dataList.forEach((item, index) => {
+      // Calculate pagination indices
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = Math.min(startIndex + itemsPerPage, currentlyFilteredData.length);
+      const pageItems = currentlyFilteredData.slice(startIndex, endIndex);
+      
+      pageItems.forEach((item) => {
         const url = item["Link sub folder"] || "";
         const title = item["File Name"] || "ไม่มีชื่อระบบ";
         const mainMission = item["Main mission"] || "";
@@ -1105,7 +1179,60 @@
         grid.appendChild(card);
       });
       
-      document.getElementById("results-count").innerText = "แสดงผลทั้งหมด " + dataList.length + " รายการ";
+      // Display range info
+      document.getElementById("results-count").innerText = 
+        "แสดงผลรายการที่ " + (startIndex + 1) + "-" + endIndex + " จากทั้งหมด " + currentlyFilteredData.length + " รายการ";
+        
+      renderPaginationControls();
+    }
+
+    // Render pagination buttons
+    function renderPaginationControls() {
+      const container = document.getElementById("pagination-controls");
+      if (!container) return;
+      
+      const totalPages = Math.ceil(currentlyFilteredData.length / itemsPerPage);
+      if (totalPages <= 1) {
+        container.innerHTML = "";
+        return;
+      }
+      
+      let html = "";
+      
+      // Prev navigation button
+      const prevDisabled = currentPage === 1 ? "disabled" : "";
+      html += `<button class="btn-page btn-page-nav" ${prevDisabled} onclick="changePage(${currentPage - 1})"><i class="fa-solid fa-chevron-left"></i> ก่อนหน้า</button>`;
+      
+      // Numbered pages
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+          const activeClass = i === currentPage ? "active" : "";
+          html += `<button class="btn-page ${activeClass}" onclick="changePage(${i})">${i}</button>`;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+          html += `<span style="padding: 0 0.25rem; color: var(--text-sub); font-weight: bold; user-select: none;">...</span>`;
+        }
+      }
+      
+      // Next navigation button
+      const nextDisabled = currentPage === totalPages ? "disabled" : "";
+      html += `<button class="btn-page btn-page-nav" ${nextDisabled} onclick="changePage(${currentPage + 1})">ถัดไป <i class="fa-solid fa-chevron-right"></i></button>`;
+      
+      container.innerHTML = html;
+    }
+
+    // Handle page transitions
+    function changePage(pageNumber) {
+      currentPage = pageNumber;
+      renderCurrentPage();
+      
+      // Smooth scroll to the top of the search section
+      const target = document.querySelector(".search-filter-section");
+      if (target) {
+        window.scrollTo({
+          top: target.offsetTop - 100,
+          behavior: "smooth"
+        });
+      }
     }
 
     // 5. Filtering and Searching functions
