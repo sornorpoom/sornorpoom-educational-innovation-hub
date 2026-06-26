@@ -468,6 +468,94 @@
     .tech-pdf { background-color: #fee2e2; color: #b91c1c; }
     .tech-other { background-color: #fef3c7; color: #92400e; }
 
+    /* Screenshot Preview & Placeholder Styles */
+    .card-preview {
+      width: 100%;
+      height: 140px;
+      position: relative;
+      overflow: hidden;
+      background-color: var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .card-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .card:hover .card-preview img {
+      transform: scale(1.08);
+    }
+    
+    /* Dynamic Gradient Placeholders based on Tech class */
+    .card-preview-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      transition: filter 0.3s ease;
+      position: relative;
+    }
+    
+    .card:hover .card-preview-placeholder {
+      filter: brightness(1.08);
+    }
+    
+    .card-preview-placeholder i {
+      font-size: 2.25rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      transition: transform 0.3s ease;
+    }
+    
+    .card:hover .card-preview-placeholder i {
+      transform: translateY(-2px);
+    }
+
+    .card-preview-placeholder span {
+      font-size: 0.7rem;
+      margin-top: 0.4rem;
+      font-weight: 600;
+      opacity: 0.85;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-family: var(--font-display);
+    }
+
+    /* Gradient definitions for tech placeholders */
+    .placeholder-gas { background: linear-gradient(135deg, #15803d, #34d399); }
+    .placeholder-vercel { background: linear-gradient(135deg, #0f172a, #475569); }
+    .placeholder-gcp { background: linear-gradient(135deg, #0284c7, #38bdf8); }
+    .placeholder-github { background: linear-gradient(135deg, #701a75, #c084fc); }
+    .placeholder-pdf { background: linear-gradient(135deg, #b91c1c, #f87171); }
+    .placeholder-other { background: linear-gradient(135deg, #b45309, #fbbf24); }
+
+    /* Modal screenshot banner */
+    .modal-preview-banner {
+      width: 100%;
+      height: 240px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 0.75rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border-color);
+      background-color: var(--border-color);
+      display: none; /* Hidden by default */
+    }
+    
+    .modal-preview-banner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
     .btn-action {
       background-color: var(--primary-color);
       color: #ffffff;
@@ -943,6 +1031,10 @@
         <button class="btn-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body">
+        <!-- Screenshot Banner -->
+        <div class="modal-preview-banner" id="modal-preview-container">
+          <img id="modal-preview-img" src="" alt="Screenshot Preview">
+        </div>
         
         <div class="modal-section">
           <div class="modal-section-title"><i class="fa-solid fa-bullseye"></i> พันธกิจหลัก</div>
@@ -1220,6 +1312,49 @@
       }
     }
 
+    // Helper to translate Google Drive sharing URLs into direct image URLs
+    function convertGoogleDriveLink(url) {
+      if (!url) return "";
+      const cleanUrl = url.trim();
+      
+      // Match drive file link patterns: /file/d/FILE_ID/view... or open?id=FILE_ID
+      const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+      const openIdRegex = /[?&]id=([a-zA-Z0-9_-]+)/;
+      
+      let fileId = "";
+      let match = cleanUrl.match(driveRegex);
+      if (match && match[1]) {
+        fileId = match[1];
+      } else {
+        match = cleanUrl.match(openIdRegex);
+        if (match && match[1]) {
+          fileId = match[1];
+        }
+      }
+      
+      if (fileId) {
+        return "https://drive.google.com/uc?export=view&id=" + fileId;
+      }
+      return cleanUrl;
+    }
+
+    // Helper to generate a beautiful gradient placeholder banner
+    function getPlaceholderHtml(techClass, techIcon, techName) {
+      let placeholderClass = "placeholder-other";
+      if (techClass === "tech-gas") placeholderClass = "placeholder-gas";
+      else if (techClass === "tech-vercel") placeholderClass = "placeholder-vercel";
+      else if (techClass === "tech-gcp") placeholderClass = "placeholder-gcp";
+      else if (techClass === "tech-github") placeholderClass = "placeholder-github";
+      else if (techClass === "tech-pdf") placeholderClass = "placeholder-pdf";
+      
+      return `
+        <div class="card-preview-placeholder ${placeholderClass}">
+          <i class="fa-solid ${techIcon}"></i>
+          <span>${techName}</span>
+        </div>
+      `;
+    }
+
     // Render Grid Cards with pagination integration
     function renderGrid(dataList) {
       currentlyFilteredData = dataList;
@@ -1268,11 +1403,31 @@
         const missionIcon = isGroup3 ? "fa-circle-nodes" : "fa-network-wired";
         const missionText = isGroup3 ? "กลุ่มงาน 3 (บริหารเชิงพื้นที่)" : "กลุ่มงาน 4 (ระบบนิเวศดิจิทัล)";
         
+        // Screenshot image check
+        const rawImage = item["Image Preview"] || item["Image"] || item["ภาพหน้าจอ"] || item["รูปภาพ"] || "";
+        const imageUrl = convertGoogleDriveLink(rawImage);
+        
+        let previewHtml = "";
+        if (imageUrl && imageUrl.trim() !== "") {
+          previewHtml = `
+            <div class="card-preview">
+              <img src="${imageUrl}" alt="${title}" loading="lazy" onerror="this.parentElement.innerHTML = getPlaceholderHtml('${techInfo.class}', '${techInfo.icon}', '${techInfo.name}')">
+            </div>
+          `;
+        } else {
+          previewHtml = `
+            <div class="card-preview">
+              ${getPlaceholderHtml(techInfo.class, techInfo.icon, techInfo.name)}
+            </div>
+          `;
+        }
+
         const card = document.createElement("div");
         card.className = "card";
         card.onclick = () => openModal(item);
         
         card.innerHTML = `
+          ${previewHtml}
           <div class="card-body">
             <div class="card-mission-group">
               <i class="fa-solid ${missionIcon}"></i> ${missionText}
@@ -1407,6 +1562,20 @@
       const summary = item["Academic Summary"] || "ไม่มีคำอธิบายเพิ่มเติม";
       const url = item["Link sub folder"] || "#";
       
+      // Screenshot Preview Banner
+      const previewContainer = document.getElementById("modal-preview-container");
+      const previewImg = document.getElementById("modal-preview-img");
+      const rawImage = item["Image Preview"] || item["Image"] || item["ภาพหน้าจอ"] || item["รูปภาพ"] || "";
+      const imageUrl = convertGoogleDriveLink(rawImage);
+      
+      if (imageUrl && imageUrl.trim() !== "") {
+        previewImg.src = imageUrl;
+        previewContainer.style.display = "block";
+      } else {
+        previewContainer.style.display = "none";
+        previewImg.src = "";
+      }
+
       document.getElementById("modal-title").innerText = title;
       document.getElementById("modal-main-mission").innerText = mainMission;
       document.getElementById("modal-sub-mission").innerText = subMission;
@@ -1436,6 +1605,11 @@
     function closeModal(event) {
       const modal = document.getElementById("detail-modal");
       modal.classList.remove("active");
+      // Clear image preview on close to avoid flickering
+      setTimeout(() => {
+        document.getElementById("modal-preview-img").src = "";
+        document.getElementById("modal-preview-container").style.display = "none";
+      }, 300);
     }
 
     // Static Fallback Data
