@@ -1073,15 +1073,93 @@
           loadLocalFallback("script-run-exception");
         }
       } else {
-        // Not in Apps Script environment (e.g. running local index.html)
-        loadLocalFallback("local-development-mode");
+        // Running on Vercel or local preview - Fetch Sheets data dynamically via public CSV export
+        loadVercelData();
       }
+    }
+
+    // Dynamic fetch from Google Sheets CSV export for Vercel / Local preview
+    function loadVercelData() {
+      const sheetId = "1Lc4Da0jXAeax9K9NnZQHO5PQEexBsvy73Ml3FFGJ-d8";
+      const csvUrl = "https://docs.google.com/spreadsheets/d/" + sheetId + "/gviz/tq?tqx=out:csv";
+      
+      fetch(csvUrl)
+        .then(response => {
+          if (!response.ok) throw new Error("Network response was not ok");
+          return response.text();
+        })
+        .then(text => {
+          const rows = parseCSV(text);
+          if (rows.length <= 1) {
+            loadLocalFallback("empty-csv");
+            return;
+          }
+          
+          // Parse headers
+          const headers = rows[0].map(h => h.trim());
+          const dataList = [];
+          
+          for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (row[0] && row[0].trim() !== "") {
+              const obj = {};
+              for (let j = 0; j < headers.length; j++) {
+                const headerName = headers[j];
+                const cellValue = row[j] ? row[j].trim() : "";
+                obj[headerName] = cellValue;
+              }
+              dataList.push(obj);
+            }
+          }
+          
+          allInnovations = dataList;
+          document.getElementById("source-indicator").innerText = "ดึงข้อมูล Real-time สำเร็จ (แหล่งที่มา: Vercel & Google Sheets)";
+          renderGrid(allInnovations);
+        })
+        .catch(err => {
+          console.warn("Vercel dynamic fetch failed, loading static fallback:", err);
+          loadLocalFallback("vercel-fetch-error");
+        });
+    }
+
+    // RFC-compliant CSV Parser in JavaScript to handle commas in quotes and double quotes
+    function parseCSV(text) {
+      const lines = [];
+      let row = [""];
+      let inQuotes = false;
+      
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        const next = text[i+1];
+        
+        if (c === '"') {
+          if (inQuotes && next === '"') {
+            row[row.length - 1] += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (c === ',' && !inQuotes) {
+          row.push("");
+        } else if ((c === '\r' || c === '\n') && !inQuotes) {
+          if (c === '\r' && next === '\n') i++;
+          lines.push(row);
+          row = [""];
+        } else {
+          row[row.length - 1] += c;
+        }
+      }
+      
+      if (row.length > 1 || row[0] !== "") {
+        lines.push(row);
+      }
+      return lines;
     }
 
     // Load Local fallback dataset
     function loadLocalFallback(source) {
       allInnovations = getStaticFallbackData();
-      document.getElementById("source-indicator").innerText = "โหลดระบบออฟไลน์ (แหล่งข้อมูลสำรอง)";
+      document.getElementById("source-indicator").innerText = "โหลดระบบออฟไลน์ (แหล่งข้อมูลสำรอง: " + source + ")";
       renderGrid(allInnovations);
     }
 
