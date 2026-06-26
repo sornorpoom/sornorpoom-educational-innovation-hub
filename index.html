@@ -1169,12 +1169,11 @@
       }, 1000);
     }
 
-    // Helper to rearrange data so the absolute latest item (last row) appears first
+    // Helper to rearrange data so that the entire list is reversed (newest/bottom row first)
     function arrangeLatestFirst(dataList) {
       if (!dataList || dataList.length <= 1) return dataList;
-      const latestItem = dataList[dataList.length - 1];
-      const otherItems = dataList.slice(0, dataList.length - 1);
-      return [latestItem, ...otherItems];
+      // Reverse array to show bottom row (newest) at the top, down to top row (oldest) at the bottom
+      return [...dataList].reverse();
     }
 
     // 4. Load Data from Google Apps Script or Fallback
