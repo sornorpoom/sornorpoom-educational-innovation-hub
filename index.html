@@ -835,7 +835,7 @@
         </div>
       </div>
       
-      <!-- Control Panel (Font & Theme selectors) -->
+      <!-- Control Panel (Font, Theme & Refresh) -->
       <div class="control-panel">
         <!-- Font sizing -->
         <div class="control-group">
@@ -851,6 +851,13 @@
           <button class="btn-control" id="btn-theme-warm" onclick="setTheme('warm')">อบอุ่น</button>
           <button class="btn-control active" id="btn-theme-light" onclick="setTheme('light')">สว่าง</button>
           <button class="btn-control" id="btn-theme-dark" onclick="setTheme('dark')">มืด</button>
+        </div>
+
+        <!-- Refresh button -->
+        <div class="control-group">
+          <button class="btn-control" onclick="refreshData()" style="color: var(--primary-color); display: flex; align-items: center; gap: 0.35rem; font-weight: 600;">
+            <i class="fa-solid fa-rotate" id="refresh-icon"></i> รีเฟรชข้อมูล
+          </button>
         </div>
       </div>
     </div>
@@ -1039,6 +1046,35 @@
       
       // Save state
       localStorage.setItem("selected-font-size", size);
+    }
+
+    // Refresh Data trigger
+    function refreshData() {
+      // Add spin animation to icon
+      const icon = document.getElementById("refresh-icon");
+      if (icon) {
+        icon.classList.add("fa-spin");
+      }
+      
+      // Show loader
+      const grid = document.getElementById("grid-container");
+      const loader = document.getElementById("loader");
+      const emptyState = document.getElementById("empty-state");
+      
+      if (grid) grid.style.display = "none";
+      if (emptyState) emptyState.style.display = "none";
+      if (loader) {
+        loader.style.display = "flex";
+        document.querySelector(".loader-text").innerText = "กำลังอัปเดตดึงข้อมูลล่าสุดจาก Google Sheets...";
+      }
+      
+      // Load data
+      loadData();
+      
+      // Remove spin animation after 1 second or when renderGrid finishes
+      setTimeout(() => {
+        if (icon) icon.classList.remove("fa-spin");
+      }, 1000);
     }
 
     // 4. Load Data from Google Apps Script or Fallback
